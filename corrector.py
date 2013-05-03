@@ -26,8 +26,20 @@ def candidate_gen(word, index, word_dict, thresh):
   """
   Generate candidate using k-gram index
   """
+  global lang
+      
+  trans_cand = []
+  for i in xrange(len(word) - 1):
+    new_word = list(word)
+    new_word[i] = word[i + 1]
+    new_word[i + 1] = word[i]
+    new_w = "".join(new_word)
+    if new_w in lang:
+      trans_cand.append(new_w)
+
   if len(word) <= 2:
-    return [word]
+    return trans_cand + [word]
+
   word_aug = '$' + word + '$'
   idx = range(len(word_aug))
   query = set()
@@ -42,7 +54,7 @@ def candidate_gen(word, index, word_dict, thresh):
         candidate[w] += 1
       else:
         candidate[w] = 1
-  cand = []
+  cand = trans_cand
   for key in candidate:
     score = float(candidate[key]) / float(len(key) + 1 + len(query) - candidate[key])
     if score >= thresh:
@@ -273,6 +285,7 @@ def split_combine(qry, prob):
 
 if __name__ == '__main__':
   model_dir = './model'
+  global lang, noisy, index, word_dict, data
   lang = unserialize_data(model_dir + os.sep + "language_model")
   noisy = unserialize_data(model_dir + os.sep + "edit_model")
   index = unserialize_data(model_dir + os.sep + "index")
