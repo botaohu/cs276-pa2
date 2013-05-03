@@ -3,6 +3,7 @@ import marshal
 import itertools
 import operator
 import math
+import os, os.path
 from collections import deque
 
 queries_loc = 'data/queries.txt'
@@ -25,6 +26,8 @@ def candidate_gen(word, index, word_dict, thresh):
   """
   Generate candidate using k-gram index
   """
+  if len(word) <= 2:
+    return [word]
   word_aug = '$' + word + '$'
   idx = range(len(word_aug))
   query = set()
@@ -84,10 +87,11 @@ def noisy_model(correct, wrong, model):
   """
   Noisy edit model
   """
-  if correct == wrong:
-    return math.log10(0.90)
-  else:
-    return math.log10(0.05)
+  sc = float(len(set(correct).intersection(set(wrong)))) * math.log10(0.90)
+  err_list = edit_distance(' '.join(correct), ' '.join(wrong))
+  sc += err_list * math.log10(0.05)
+  return sc
+  
 
 def gen_candidate_query(query, index, word_dict, prob, thresh):
   """
@@ -109,14 +113,45 @@ def gen_candidate_query(query, index, word_dict, prob, thresh):
       for item in lst:
         if (seq[-1], item) in prob:
           queue.append(seq + [item])
-  return queue
+  return list(queue)
+
+def gen_candidate_query_v2(query, index, word_dict, prob, thresh):
+  """
+  Generate possible query
+  """
+  queue = deque([])
+  if query[0] in prob:
+    lst = [query[0]]
+  else:
+    lst = candidate_gen(query[0], index, word_dict, thresh)
+    lst = [u for u in lst if edit_distance(u, query[0]) <= 2]
+  for item in lst:
+    queue.append([item])
+
+  for i in range(1, len(query)):
+    if query[i] in prob:
+      lst = [query[i]]
+    else:
+      lst = candidate_gen(query[i], index, word_dict, thresh)
+      lst = [u for u in lst if edit_distance(u, query[i]) <= 2]
+      
+    while len(queue) != 0:
+      seq = queue.popleft()
+      if len(seq) == i+1:
+        queue.append(seq)
+        break
+      for item in lst:
+        if (seq[-1], item) in prob:
+          queue.append(seq + [item])
+  return list(queue)
 
 def score(original, current, lang_model, edit_model):
+  """
+  Output score
+  """
   sc = language_model(current, lang_model)
-  for i in range(len(original)):
-    sc += noisy_model(original[i], current[i], edit_model)
+  sc += noisy_model(current, original, edit_model)
   return sc
-
 
 def read_query_data():
   """
@@ -137,11 +172,36 @@ def read_query_data():
   assert( len(queries) == len(gold) and len(gold) == len(google) )
   return (queries, gold, google)
 
+def split_combine(qry, prob):
+  lst = []
+  # Split
+  for idx in range(0, len(qry)):
+    item = qry[idx]
+    for i in range(1, len(item)):
+      if item[0:i] in prob and item[i:] in prob:
+        temp = []
+        temp.extend(qry)
+        temp[idx] = item[0:i]
+        temp.insert(idx+1, item[i:])
+        lst.append(temp)
+  # Combine
+  ii = range(len(qry))
+  for tup in itertools.izip(ii[:-1],ii[1:]):
+    if qry[tup[0]] + qry[tup[1]] in prob:
+      temp = []
+      temp.extend(qry)
+      temp[tup[0]] = qry[tup[0]] + qry[tup[1]]
+      temp.pop(tup[1])
+      lst.append(temp)
+  return lst
+  
+
 if __name__ == '__main__':
-  lang = unserialize_data("language_model")
-  noisy = unserialize_data("edit_model")
-  index = unserialize_data("index")
-  word_dict = unserialize_data("word")
+  model_dir = './model'
+  lang = unserialize_data(model_dir + os.sep + "language_model")
+  noisy = unserialize_data(model_dir + os.sep + "edit_model")
+  index = unserialize_data(model_dir + os.sep + "index")
+  word_dict = unserialize_data(model_dir + os.sep + "word")
   data = read_query_data()
 
   # Parameters
@@ -154,10 +214,15 @@ if __name__ == '__main__':
   acc = len(answer)
   print acc
   for i in range(len(question)):
-    if i % 100 == 0:
+    if i % 10 == 0:
       print "Progess %d" % i
     qry = question[i].split()
     cand = gen_candidate_query(qry, index, word_dict, lang, thresh)
+    SplitCombine = split_combine(qry, lang)
+    for item in SplitCombine:
+      cand = cand + gen_candidate_query_v2(item, index, word_dict, lang, thresh)
+
+    
     ans = ''
     if len(cand) == 0:
       ans = ' '.join(qry)
@@ -167,6 +232,10 @@ if __name__ == '__main__':
       ans = ' '.join(cand[idx])
     if ans != answer[i]:
       acc -= 1
+      print question[i]
+      print ans
+      print answer[i]
+      print '----------------------------'
   print 'Accuracy: %d' % acc
     
     

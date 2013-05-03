@@ -1,5 +1,5 @@
 import sys
-import os.path
+import os.path, os
 import itertools
 import math
 import marshal
@@ -141,12 +141,17 @@ if __name__ == '__main__':
   count, tot, index, word_dict = load_corpus(train_lang_dir)
   
   prob = calc_prob(count, tot, inter_lambda)
-  serialize_data(prob, "language_model")
-  serialize_data(index, "index")
-  serialize_data(word_dict, "word")
+
+  model_dir = './model'
+  if not os.path.exists(model_dir):
+    os.makedirs(model_dir)
+
+  serialize_data(prob, model_dir + os.sep + "language_model")
+  serialize_data(index, model_dir + os.sep + "index")
+  serialize_data(word_dict, model_dir + os.sep + "word")
 
   edit = noisy_model(train_edit_dir)
-  serialize_data(edit, "edit_model")
+  serialize_data(edit, model_dir + os.sep + "edit_model")
 
   
   
