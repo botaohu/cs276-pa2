@@ -150,13 +150,21 @@ def language_model(query, prob):
   return score
 
 
-def noisy_model(correct, wrong, model):
+def noisy_model(correct, wrong, model, uniform):
   """
   Noisy edit model
   """
   sc = float(len(set(correct).intersection(set(wrong)))) * math.log10(0.90)
-  err_list = edit_distance(' '.join(correct), ' '.join(wrong))
-  sc += err_list * math.log10(0.05)
+  if uniform:
+    err_list = edit_distance(' '.join(correct), ' '.join(wrong))
+    sc += err_list * math.log10(0.05)
+  else:
+    err_list = edit_distance_v2(' '.join(correct), ' '.join(wrong))
+    for err in err_list:
+      if err in model:
+        sc += math.log10(float(model[err])/float(model[err[0]]))
+      else:
+        sc += math.log10(1.0 / float(model[err[0]] + 1))
   return sc
   
 
@@ -212,12 +220,12 @@ def gen_candidate_query_v2(query, index, word_dict, prob, thresh):
           queue.append(seq + [item])
   return list(queue)
 
-def score(original, current, lang_model, edit_model):
+def score(original, current, lang_model, edit_model, uniform):
   """
   Output score
   """
   sc = language_model(current, lang_model)
-  sc += noisy_model(current, original, edit_model)
+  sc += noisy_model(current, original, edit_model, uniform)
   return sc
 
 def read_query_data():
@@ -270,9 +278,10 @@ if __name__ == '__main__':
   index = unserialize_data(model_dir + os.sep + "index")
   word_dict = unserialize_data(model_dir + os.sep + "word")
   data = read_query_data()
-
+  
   # Parameters
   thresh = 0.5
+  uniform = False
 
   question = data[0]
   answer = data[1]
@@ -294,7 +303,7 @@ if __name__ == '__main__':
     if len(cand) == 0:
       ans = ' '.join(qry)
     else:
-      rank = [score(qry, u, lang, noisy) for u in cand]
+      rank = [score(qry, u, lang, noisy, uniform) for u in cand]
       idx = rank.index(max(rank))
       ans = ' '.join(cand[idx])
     if ans != answer[i]:
