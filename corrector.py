@@ -49,6 +49,73 @@ def candidate_gen(word, index, word_dict, thresh):
       cand.append(key)
   return cand
 
+def edit_distance_v2(w1, w2):
+  """
+  Compute exact edit distance
+  """
+  d = {}
+  p = {}
+  w1 = " " + w1
+  w2 = " " + w2
+  for i in range(len(w1)):
+    for j in range(len(w2)):
+      if i == 0 and j == 0:
+        d[i,j] = 0
+      else:
+        d[i,j] = 1000000
+      p[i,j] = ("","")
+      if i > 0 and j > 0:
+        if w1[i] == w2[j]:
+          if d[i,j] > d[i-1,j-1]:
+            d[i,j] = d[i-1,j-1] 
+            p[i,j] = ("", "")
+        else:
+          if d[i,j] > d[i-1,j-1] + 1:
+            d[i,j] = d[i-1,j-1] + 1
+            p[i,j] = (w1[i], w2[j])
+      if i > 0:  #delete
+        if d[i,j] > d[i-1,j] + 1: #delete
+          d[i,j] = d[i-1,j]+1
+          if i == 0:
+            p[i,j] = ('\n' + w1[i],  '\n') # begin
+          else:
+            p[i,j] = (w1[i-1] + w1[i],  w1[i - 1])
+      if j > 0: #insert
+        if d[i,j] > d[i,j-1] + 1:
+          d[i,j] = d[i,j-1]+1
+          if j == 0:
+            p[i,j] = ('\n', '\n' + w2[j])
+          else:
+            p[i,j] = (w2[j - 1], w2[j - 1] + w2[j])
+      if i > 1 and j > 1 and w1[i] == w2[j-1] and w1[i-1] == w2[j]:
+        if d[i,j] > d[i-2,j-2] + 1:
+          d[i,j] = d[i-2,j-2] + 1
+          p[i,j] = (w1[i-1] + w1[i], w2[j-1] + w2[j])
+  i = len(w1) - 1
+  j = len(w2) - 1
+  ans = []
+  while i > 0 or j > 0:
+    arr = p[i,j]
+    f = arr[0]
+    t = arr[1]
+    ans.append(p[i,j])
+    if len(f) == 2 and len(t) == 2:
+      i -= 2
+      j -= 2
+    elif len(f) == 2 and len(t) == 1:
+      i -= 1
+    elif len(f) == 1 and len(t) == 2:
+      j -= 1
+    elif len(f) == 1 and len(t) == 1:
+      i -= 1
+      j -= 1
+    else:
+      i -= 1
+      j -= 1
+      ans.pop()
+  ans.reverse()
+  return ans
+
 def edit_distance(word1, word2):
   """
   Compute exact edit distance
