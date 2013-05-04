@@ -51,8 +51,14 @@ In our experiment, we use the default $\lambda = 0.2$.
 In addition, we use all the unigram in the corpus to build a bigram-character index to support efficient candidate word generation.
 
 \section{Candidate Word Generation}
+
+\subsection{Bigram Indexing}
 We use bigram index to efficiently compute Jaccard distance between words, threshold Jaccard distances to obtain a list of candidates, and filter the candidates using the exact Damerau-Levenshtein distance.
 We tune the threshold parameter to be $0.5$ to balance between efficiency and accuracy.
+\subsection{Levenshtein Automata (Extra credit)}
+
+\subsection{Combined and Spilted Words}
+
 
 \section{Candidate Query Scoring Using Markov-Chain Inference}
 For every term in a given query, we can

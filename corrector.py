@@ -216,7 +216,7 @@ def gen_split_candidate(word):
 
 def do_inference(original_qry):
   qry = original_qry.split()
-  global lang, cand_topk_prev
+  global lang, cand_topk_prev, use_multiple_combined
 
   markov = {}
   markov[-1] = [('\0', 0, [])] 
@@ -225,8 +225,11 @@ def do_inference(original_qry):
     cands = [("normal", cand) for cand in gen_candidate(qry[i])] #normal
     cands += [("split", cand) for cand in gen_split_candidate(qry[i])] #split "cand1 cand2"
     if i > 0: #combined
-      cands += [("combined", cand) for cand in gen_candidate(qry[i - 1] + qry[i])]
-
+      if use_multiple_combined:
+        cands += [("combined", cand) for cand in gen_candidate(qry[i - 1] + qry[i])]
+      else:
+        if (qry[i - 1] + qry[i]) in lang: 
+          cands.append(("combined", qry[i - 1] + qry[i]))
     #normalization for wrong spelling
     score_channel_wrong_total = 0
     for cand_type, cand in cands:
@@ -283,7 +286,7 @@ def do_inference(original_qry):
     return ' '.join(qry)
 
 def debuginit():
-  global runmode, use_uniform, use_automata
+  global runmode, use_uniform, use_automata, use_multiple_combined
   #parameter
 
   runmode = 'debug'
@@ -294,6 +297,7 @@ def debuginit():
   question = read_query_data(queries_loc)
   use_uniform = False
   use_automata = True
+  use_multiple_combined = False
   answer = read_query_data(gold_loc)
   google = read_query_data(google_loc)
 
@@ -321,7 +325,7 @@ def debuginit():
 
 if __name__ == '__main__':
 
-  global runmode, use_uniform, use_automata
+  global runmode, use_uniform, use_automata, use_multiple_combined
   #parameter
 
   groundtruth = False
@@ -349,6 +353,7 @@ if __name__ == '__main__':
     answer = read_query_data(gold_loc)
     google = read_query_data(google_loc)
 
+  use_multiple_combined = True
   if runmode == 'debug':
     use_uniform = False
     use_automata = True
@@ -361,6 +366,7 @@ if __name__ == '__main__':
   elif runmode == 'extra':
     use_uniform = False
     use_automata = True
+    use_multiple_combined = False
 
   load_models()
   
