@@ -5,6 +5,8 @@ import math
 import marshal
 from glob import iglob
 
+inter_lambda = 0.2
+
 def serialize_data(data, fname):
   """
   Writes `data` to a file named `fname`
@@ -63,6 +65,7 @@ def calc_prob(count, tot_cnt, lam):
   """
   Calculating probabilities in log-space using unigram/bigram count
   """
+  global inter_lambda
   prob = {}
   for item in count:
     if isinstance(item, tuple):
@@ -71,7 +74,7 @@ def calc_prob(count, tot_cnt, lam):
       prob[item] = float(count[item]) / float(tot_cnt)
   for item in prob:
     if isinstance(item, tuple):
-      prob[item] = (1-lam) * prob[item] + lam * prob[item[1]]
+      prob[item] = (1-inter_lambda) * prob[item] + inter_lambda * prob[item[1]]
   return prob
 
 def edit_type(wrong, correct):
@@ -83,25 +86,30 @@ def edit_type(wrong, correct):
       if correct[i] != wrong[i]:
         # Transposition
         if i != len(correct) - 1 and correct[i] == wrong[i+1]:
-          return (correct[i]+correct[i+1], wrong[i]+wrong[i+1])
+          return ("t", correct[i], correct[i+1])
         # Substitution
         else:
-          return (correct[i], wrong[i])
+          return ("s", correct[i], wrong[i])
   elif len(correct) > len(wrong):
     # Deletion
-    for i in range(0, len(wrong)):
-      if wrong[i] != correct[i]:
-        return (correct[i]+correct[i+1], wrong[i])
-    return (correct[-2:], wrong[-1])
-  else:
-    # Insertion
     for i in range(0, len(correct)):
-      if correct[i] != wrong[i]:
-        return (correct[i], wrong[i]+wrong[i+1])
-    return (correct[-1], wrong[-2:])
+      if i >= len(wrong) or wrong[i] != correct[i]:
+        if i == 0:
+          return ("d",' ',correct[i])  
+        else:
+          return ("d",correct[i-1],correct[i])
+  else:
+    assert(len(correct) < len(wrong))
+    # Insertion
+    for i in range(0, len(wrong)):
+      if i >= len(correct) or correct[i] != wrong[i]:
+        if i == 0:
+          return ("i", ' ', wrong[i])
+        else:
+          return ("i", correct[i-1], wrong[i])
   assert(1 == 0)
   
-def noisy_model(edit_file):
+def process_noisy_model(edit_file):
   """
   Returns the counts
   """
@@ -121,7 +129,9 @@ def noisy_model(edit_file):
       # Bigram
       idx = range(len(line[1]))
       for tup in itertools.izip(idx[:-1],idx[1:]):
-        add_table(noisy_model, line[1][tup[0]]+line[1][tup[1]])
+        add_table(noisy_model, (line[1][tup[0]], line[1][tup[1]]))
+      if len(line[1]) > 0: #beginning of the line
+        add_table(noisy_model, (' ', line[1][0]))
   return noisy_model
 
 
@@ -137,7 +147,6 @@ if __name__ == '__main__':
     train_lang_dir = sys.argv[1]
     train_edit_dir = sys.argv[2]
 
-  inter_lambda = 0.2
   count, tot, index, word_dict = load_corpus(train_lang_dir)
   
   prob = calc_prob(count, tot, inter_lambda)
@@ -150,7 +159,7 @@ if __name__ == '__main__':
   serialize_data(index, model_dir + os.sep + "index")
   serialize_data(word_dict, model_dir + os.sep + "word")
 
-  edit = noisy_model(train_edit_dir)
+  edit = process_noisy_model(train_edit_dir)
   serialize_data(edit, model_dir + os.sep + "edit_model")
 
   
