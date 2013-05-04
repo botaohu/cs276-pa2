@@ -112,10 +112,7 @@ def gen_candidate(word):
   """
   global matcher, use_automata, bindex, word_dict, bindex_thresh, lang, cand_topk_cur
   if use_automata:
-    cands = [(cand, edit_distance_plus(cand, word)[1]) for cand in automata.find_all_matches(word, 2, matcher)]
-    cands = sorted(cands, key=lambda x: lang[x[0]] + x[1])
-    cands = [cand for cand, score in cands[:cand_topk_cur]]
-    return cands
+    cands = list(automata.find_all_matches(word, 2, matcher))
   else:
     word_aug = '$' + word + '$'
     idx = range(len(word_aug))
@@ -131,15 +128,19 @@ def gen_candidate(word):
           candidate[w] += 1
         else:
           candidate[w] = 1
-    cand = []
+    cands = []
     for key, cnt in candidate.iteritems():
       score = float(cnt) / float(len(key) + 1 + len(query) - cnt)
       if score >= bindex_thresh and edit_distance(key, word) <= 2:
-        cand.append(key)
-    if len(cand) == 0 and word in lang:
-      cand.append(word)
-    return cand
-
+        cands.append(key)
+    if len(cands) == 0 and word in lang:
+      cands.append(word)
+  
+  cands = [(cand, edit_distance_plus(cand, word)[1]) for cand in cands]
+  cands = sorted(cands, key=lambda x: lang[x[0]] + x[1])
+  cands = [cand for cand, score in cands[:cand_topk_cur]]
+  return cands
+  
 def lang_model(word1, word2):
   """
   Compute the score of language model
@@ -213,7 +214,8 @@ def gen_split_candidate(word):
       cands.append(word[0:i] + ' ' + word[i:])
   return cands
 
-def do_inference(qry):
+def do_inference(original_qry):
+  qry = original_qry.split()
   global lang, cand_topk_prev
 
   markov = {}
@@ -222,8 +224,8 @@ def do_inference(qry):
     markov[i] = []
     cands = [("normal", cand) for cand in gen_candidate(qry[i])] #normal
     cands += [("split", cand) for cand in gen_split_candidate(qry[i])] #split "cand1 cand2"
-    if i > 0 and (qry[i - 1] + qry[i]) in lang: #combined
-      cands.append(("combined", qry[i - 1] + qry[i]))
+    if i > 0: #combined
+      cands += [("combined", cand) for cand in gen_candidate(qry[i - 1] + qry[i])]
 
     #normalization for wrong spelling
     score_channel_wrong_total = 0
@@ -305,7 +307,7 @@ def debuginit():
   for i in range(len(question)):
     if i % 10 == 0:
       print >> sys.stderr, "Progess %d" % i
-    ans = do_inference(question[i].split())
+    ans = do_inference(question[i])
     
     if runmode == 'debug' and ans != answer[i]:
       acc -= 1
@@ -322,8 +324,16 @@ if __name__ == '__main__':
   global runmode, use_uniform, use_automata
   #parameter
 
+  groundtruth = False
   if len(sys.argv) == 1: #debug mode 
     runmode = 'debug'
+    groundtruth = True
+    queries_loc = 'data/queries.txt'
+    gold_loc = 'data/gold.txt'
+    google_loc = 'data/google.txt'
+  elif len(sys.argv) == 2:
+    runmode = sys.argv[1] 
+    groundtruth = True
     queries_loc = 'data/queries.txt'
     gold_loc = 'data/gold.txt'
     google_loc = 'data/google.txt'
@@ -335,11 +345,13 @@ if __name__ == '__main__':
     os._exit(-1)
 
   question = read_query_data(queries_loc)
+  if groundtruth:
+    answer = read_query_data(gold_loc)
+    google = read_query_data(google_loc)
+
   if runmode == 'debug':
     use_uniform = False
     use_automata = True
-    answer = read_query_data(gold_loc)
-    google = read_query_data(google_loc)
   elif runmode == 'uniform':
     use_uniform = True
     use_automata = False
@@ -352,21 +364,21 @@ if __name__ == '__main__':
 
   load_models()
   
-  if runmode == 'debug':
+  if groundtruth:
     acc = len(question)
     print >> sys.stderr, acc
 
   for i in range(len(question)):
     if i % 10 == 0:
       print >> sys.stderr, "Progess %d" % i
-    ans = do_inference(question[i].split())
+    ans = do_inference(question[i])
     
-    if runmode == 'debug' and ans != answer[i]:
+    if groundtruth and ans != answer[i]:
       acc -= 1
       print >> sys.stderr, question[i]
       print >> sys.stderr, ans
       print >> sys.stderr, answer[i]
       print >> sys.stderr, '----------------------------'
-  if runmode == 'debug':
+  if groundtruth:
     print >> sys.stderr, 'Accuracy: %d' % acc
     
