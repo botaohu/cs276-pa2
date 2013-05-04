@@ -1,0 +1,60 @@
+\input{suhw.tex}
+\usepackage{graphicx,amssymb,amsmath,enumerate}
+\usepackage{courier}
+\usepackage{color}
+\usepackage{listings}
+\usepackage{fancyvrb}
+\usepackage{stmaryrd}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\lstset{language=Python,
+	frame=lines,
+   basicstyle=\ttfamily\fontsize{8}{12}\selectfont,
+   keywordstyle=\color{blue},
+   commentstyle=\color{red},
+   stringstyle=\color{dkgreen},
+   numbers=left,
+   numberstyle=\tiny\color{gray},
+   stepnumber=1,
+   numbersep=10pt,
+   backgroundcolor=\color{white},
+   tabsize=2,
+   showspaces=false,
+   showstringspaces=false,
+   lineskip=-3.5pt }
+\oddsidemargin 0in
+\evensidemargin 0in
+\textwidth 6.5in
+\topmargin -0.5in
+\textheight 9.0in
+
+\begin{document}
+
+\normaldoc{CS276: Information Retrieval and Web Search}{Spring 2013}{Programming Assignment 2}{Botao Hu (botaohu), Jiayuan Ma (jiayuanm)}{\today}
+
+\pagestyle{myheadings}  % Leave this command alone
+
+\section{Language Model}
+We build our language model using the provided corpus, and count all the unigrams and bigrams that appeared in the corpus.
+Using these counts, we can estimate the parameters in our language model by calculating
+\begin{equation}\label{eq:1}
+P_{mle}(w_i | w_{i-1}) = \frac{count(w_{i-1}, w_i)}{count(w_i)}
+\qquad
+P_{mle}(w_i) = \frac{count(w_i)}{\textrm{total number of terms}}
+\end{equation}
+In addition, we use all the unigram in the corpus
+
+\section{Candidate Word Generation}
+We use bigram index to efficiently compute Jaccard distance between words, threshold distances to obtain a list of candidates, and filter the candidates using the exact Damerau-Levenshtein distance.
+We tune the
+
+\section{Candidate Query Generation and Scoring}
+For
+
+
+\section{Edit Cost Model}
+
+
+\end{document}
+
