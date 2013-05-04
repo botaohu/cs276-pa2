@@ -35,7 +35,14 @@
 
 \pagestyle{myheadings}  % Leave this command alone
 
-\section{Language Model}
+\section{Models}
+
+We model the probabilty of a correct query $Q$ given the typo query $W$ as 
+$P(Q | W) \propto P(Q) P(W | Q)$. 
+We call $P(Q)$ the language model and $P(W | Q)$ the edit channel model.  
+
+
+\subsection{Language Model}
 We build our language model using the provided corpus, and count all the unigrams and bigrams that appeared in the corpus.
 Using these counts, we can estimate the parameters in our language model by calculating
 \begin{equation}\label{eq:1}
@@ -50,23 +57,60 @@ P_{int}(w2 | w1) = \lambda P_{mle}(w2) + (1 - \lambda)P_{mle}(w2|w1)
 In our experiment, we use the default $\lambda = 0.2$.
 In addition, we use all the unigram in the corpus to build a bigram-character index to support efficient candidate word generation.
 
+
+\subsection{Edit Channel Model}
+We have two versions of the edit channel model: one is the uniform model, i.e. the error rate is a const paramemter that we set to 0.05.
+
+The other one is the empirical model. Based on training data of 1-distance edit pairs, we can easily model edit cost of each word using singleton potential in our Markov chain model. The edit cost is given as follows.
+\begin{equation}\label{eq:5}
+P(x | w) = \left\{\begin{array}{ll}
+\frac{del[w_{i-1}, w_i]}{count[w_{i-1}, w_i]} & \textrm{if deletion} \\
+\frac{ins[w_{i-1}, x_i]}{count[w_{i-1}]} & \textrm{if insertion} \\
+\frac{sub[w_i, x_i]}{count[w_i]} & \textrm{if substitution} \\
+\frac{trans[w_i, w_{i+1}]}{count[w_i, w_{i+1}]} & \textrm{if transposition}
+\end{array}\right.
+\end{equation}
+where $w$ is the correct word and $x$ is the typo. 
+
+All these count statistics come from the provided training file. For the unseen edits, we use Laplace smoothing to deal with the data sparsity issue.
+
 \section{Candidate Word Generation}
 
 \subsection{Bigram Indexing}
 We use bigram index to efficiently compute Jaccard distance between words, threshold Jaccard distances to obtain a list of candidates, and filter the candidates using the exact Damerau-Levenshtein distance.
-We tune the threshold parameter to be $0.5$ to balance between efficiency and accuracy.
+We tune the threshold parameter of Jaccard distance to be $0.5$ to balance between efficiency and accuracy. 
+
 \subsection{Levenshtein Automata (Extra credit)}
+We observe that Jaccard distance is not a good approximation of Damerau-Levenshtein distance, especially when the words are short and the correct edits are transpositions. To fix this problem, we implement the Levenshtein Automata to support \emph{fast} and \emph{accurate} candidate generation for words.
+
+We use a Levenshtein transducer that uses a finite state automata for fuzzy matching of words. 
+Based the experimental implementation provided in the assignment, we generalized it to perform the transposition operation by add an extra intermediate state $(i + 1, e, 1)$ to respresent the transportation of two characters $w_i w_{i+1}$, i.e., we create the path $(i, e) \underbrace{\to}_{w_{i + 1}} (i + 1, e, 1) \underbrace{\to}_{w_{i}} (i + 2, e + 1)$ where state $(i, e)$ respresent we edit the first $i$ characters of the correct string with $e$ edits.
+
+\begin{lstlisting}[caption={Exerpt from automata.py}]
+# Deletion
+nfa.add_transition((i, e), NFA.ANY, (i, e + 1))
+# Insertion
+nfa.add_transition((i, e), NFA.EPSILON, (i + 1, e + 1))
+# Substitution
+nfa.add_transition((i, e), NFA.ANY, (i + 1, e + 1))
+# Transportation
+if i < len(term) - 1:
+  nfa.add_transition((i, e), term[i + 1], (i + 1, e, 1))
+  nfa.add_transition((i + 1, e, 1), c, (i + 2, e + 1))
+\end{lstlisting}
 
 \subsection{Combined and Spilted Words}
+The space may be inserted in words. So we try to combine the adjacent two words into one candidate.
 
+In the other hand, the space may be removed between two adjacent words. We try to enumerate all positions of one typo word to spilt it into two words as one candicate $(w_1, w_2)$. 
+Note that we have to add the language model $P(w_2 | w_1)$ in the final model in this case.
+
+\subsection{Ranking and Filtering Candidate Words}
+Given a candidate word $c$ and a typo word $w$, we can use the language model and edit channel model to evaluate a score that is the probabilty of changing $c$ to $w$, i.e., $P(w | c) P(c)$.
+We sort all candidates by the score and only remains the first $cand_k = 20$ items to be candidates of the typo word $w$.
 
 \section{Candidate Query Scoring Using Markov-Chain Inference}
-For every term in a given query, we can
-\begin{itemize}
-  \item split it into two words in the dictionary
-  \item edit it using at most two edit operations (deletion/insertion/substitution/transposition)
-  \item combine it with the next word to form a new word that appeared in the dictionary 
-\end{itemize}
+
 Given the proposed candidate query, we compute our language model using
 \begin{equation}\label{eq:3}
 P(w_1, w_2, \dots, w_n) = P(w_1) P(w_2 | w_1) P(w_3 | w_2) \cdot P(w_n | w_{n-1})
@@ -77,25 +121,15 @@ which is essentially a Markov-Chain model. We can minimize the negative log-like
 \end{equation}
 using dynamic programming (Viterbi algorithm) on markov chain. Based on this approach,
 we can find a global minimum without scoring all the possible candidate queries.
+So the algorithm complexity is linear to the number of words in the query and the square of the number of candidates of one word. Because we only remains the top $cand_k$ candidates in each step, the speed of inference is fast. 
+
+We think that this dynamic programming implementation is one of the most important contribution of our works.
 
 
-\section{Edit Cost Model}
-Based on the above discussion, we can easily model edit cost of each word using singleton potential in our Markov chain model. The edit cost is given as follows.
-\begin{equation}\label{eq:5}
-P(x | w) = \left\{\begin{array}{ll}
-\frac{del[w_{i-1}, w_i]}{count[w_{i-1}, w_i]} & \textrm{if deletion} \\
-\frac{ins[w_{i-1}, w_i]}{count[w_{i-1}]} & \textrm{if insertion} \\
-\frac{sub[x_i, w_i]}{count[w_i]} & \textrm{if substitution} \\
-\frac{trans[w_i, w_{i+1}]}{count[w_i, w_{i+1}]} & \textrm{if transposition}
-\end{array}\right.
-\end{equation}
-All these count statistics come from the provided training file. For the unseen edits, we use Laplace smoothing to deal with the data sparsity issue.
-
-\section{Levenshtein Automata}
-We observe that Jaccard distance is not a good approximation of Damerau-Levenshtein distance, especially when the words are short and the correct edits are transpositions. To fix this problem, we implement the Levenshtein Automata to support \emph{fast} and \emph{accurate} candidate generation for words.
-
-\section{Conclusion}
-Our ultimate model (Empirical Edit Cost, Levenshtein Automata with Dynamic Programming) achieves $89.45\%$ accuracy on the provided development queries.
+\section{Experiments \& Conclusion}
+The uniform model achieves $381/455 = 0.83$ accuracy on the provided development queries.
+The emprical model achieves $389/455 = 0.85$ accuracy on the provided development queries.
+Our ultimate model (Empirical Edit Cost, Levenshtein Automata with Dynamic Programming) achieves $409/455 = 0.90$ accuracy on the provided development queries.
 
 
 \end{document}

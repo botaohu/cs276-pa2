@@ -120,12 +120,19 @@ INPUT /usr/local/texlive/2012/texmf-dist/tex/latex/stmaryrd/Ustmry.fd
 INPUT /usr/local/texlive/2012/texmf-dist/fonts/tfm/public/stmaryrd/stmary10.tfm
 INPUT /usr/local/texlive/2012/texmf-dist/fonts/tfm/public/stmaryrd/stmary8.tfm
 INPUT /usr/local/texlive/2012/texmf-dist/fonts/tfm/public/stmaryrd/stmary6.tfm
-INPUT /usr/local/texlive/2012/texmf-dist/tex/latex/base/omscmr.fd
-INPUT /usr/local/texlive/2012/texmf-dist/tex/latex/base/omscmr.fd
+INPUT /usr/local/texlive/2012/texmf-dist/fonts/tfm/public/cm/cmr12.tfm
+INPUT /usr/local/texlive/2012/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm
 OUTPUT report.pdf
 INPUT /usr/local/texlive/2012/texmf-var/fonts/map/pdftex/updmap/pdftex.map
+INPUT /usr/local/texlive/2012/texmf-dist/tex/latex/psnfss/ot1pcr.fd
+INPUT /usr/local/texlive/2012/texmf-dist/tex/latex/psnfss/ot1pcr.fd
+INPUT /usr/local/texlive/2012/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm
+INPUT /usr/local/texlive/2012/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm
 INPUT /usr/local/texlive/2012/texmf-dist/fonts/tfm/public/cm/cmsl10.tfm
+INPUT /usr/local/texlive/2012/texmf-dist/fonts/vf/adobe/courier/pcrr7t.vf
+INPUT /usr/local/texlive/2012/texmf-dist/fonts/tfm/adobe/courier/pcrr8r.tfm
 INPUT report.aux
+INPUT /usr/local/texlive/2012/texmf-dist/fonts/enc/dvips/base/8r.enc
 INPUT /usr/local/texlive/2012/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb
 INPUT /usr/local/texlive/2012/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb
 INPUT /usr/local/texlive/2012/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb
@@ -140,3 +147,4 @@ INPUT /usr/local/texlive/2012/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.p
 INPUT /usr/local/texlive/2012/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb
 INPUT /usr/local/texlive/2012/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb
 INPUT /usr/local/texlive/2012/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb
+INPUT /usr/local/texlive/2012/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb
