@@ -372,7 +372,7 @@ if __name__ == '__main__':
     if i % 10 == 0:
       print >> sys.stderr, "Progess %d" % i
     ans = do_inference(question[i])
-    
+    print ans
     if groundtruth and ans != answer[i]:
       acc -= 1
       print >> sys.stderr, question[i]
