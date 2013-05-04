@@ -11,6 +11,8 @@ alphabet = "abcdefghijklmnopqrstuvwxyz0123546789&$+_' "
 bindex_thresh = 0.5
 spell_correct_rate = 0.9
 uniform_error_rate = 0.05
+cand_topk_prev = 20
+cand_topk_cur = 20
 
 def unserialize_data(fname):
   """
@@ -108,12 +110,13 @@ def gen_candidate(word):
   """
   Generate candidate using k-gram index or automata
   """
-  global matcher, use_automata, bindex, word_dict, bindex_thresh
+  global matcher, use_automata, bindex, word_dict, bindex_thresh, lang, cand_topk_cur
   if use_automata:
-    return list(automata.find_all_matches(word, 2, matcher))
+    cands = [(cand, edit_distance_plus(cand, word)[1]) for cand in automata.find_all_matches(word, 2, matcher)]
+    cands = sorted(cands, key=lambda x: lang[x[0]] + x[1])
+    cands = [cand for cand, score in cands[:cand_topk_cur]]
+    return cands
   else:
-    if len(word) <= 2:
-      return [word]
     word_aug = '$' + word + '$'
     idx = range(len(word_aug))
     query = set()
@@ -133,6 +136,8 @@ def gen_candidate(word):
       score = float(cnt) / float(len(key) + 1 + len(query) - cnt)
       if score >= bindex_thresh and edit_distance(key, word) <= 2:
         cand.append(key)
+    if len(cand) == 0 and word in lang:
+      cand.append(word)
     return cand
 
 def lang_model(word1, word2):
@@ -187,7 +192,7 @@ def read_query_data(queries_loc):
   return queries
   
 def load_models():
-  global lang, noisy, bindex, word_dict, edit_model
+  global lang, bindex, word_dict, edit_model
 
   model_dir = './model'
   lang = unserialize_data(model_dir + os.sep + "language_model")
@@ -196,6 +201,7 @@ def load_models():
   word_dict = unserialize_data(model_dir + os.sep + "word")
 
   words = word_dict.values()
+  words.sort()
   global matcher
   matcher = automata.Matcher(words)
 
@@ -208,7 +214,7 @@ def gen_split_candidate(word):
   return cands
 
 def do_inference(qry):
-  global lang
+  global lang, cand_topk_prev
 
   markov = {}
   markov[-1] = [('\0', 0, [])] 
@@ -259,7 +265,10 @@ def do_inference(qry):
           markov[i].append((cand_bigram[1], score, best_sequence))
         else:
           markov[i].append((cand, score, best_sequence))
-  
+      
+    result = sorted(markov[i], key=lambda x: x[1]) #score
+    markov[i] = result[:cand_topk_prev]
+
   score = float("inf")
   best_sequence = []
   for cand, total_score, sequence in markov[len(qry) - 1]:
@@ -270,6 +279,43 @@ def do_inference(qry):
     return ' '.join(best_sequence)
   else:
     return ' '.join(qry)
+
+def debuginit():
+  global runmode, use_uniform, use_automata
+  #parameter
+
+  runmode = 'debug'
+  queries_loc = 'data/queries.txt'
+  gold_loc = 'data/gold.txt'
+  google_loc = 'data/google.txt'
+  
+  question = read_query_data(queries_loc)
+  use_uniform = False
+  use_automata = True
+  answer = read_query_data(gold_loc)
+  google = read_query_data(google_loc)
+
+  load_models()
+  
+  question = ['s']
+  answer = ['s']
+  google = ['s']
+  
+  acc = len(question)
+  for i in range(len(question)):
+    if i % 10 == 0:
+      print >> sys.stderr, "Progess %d" % i
+    ans = do_inference(question[i].split())
+    
+    if runmode == 'debug' and ans != answer[i]:
+      acc -= 1
+      print >> sys.stderr, question[i]
+      print >> sys.stderr, ans
+      print >> sys.stderr, answer[i]
+      print >> sys.stderr, '----------------------------'
+  if runmode == 'debug':
+    print >> sys.stderr, 'Accuracy: %d' % acc
+    
 
 if __name__ == '__main__':
 
@@ -291,7 +337,7 @@ if __name__ == '__main__':
   question = read_query_data(queries_loc)
   if runmode == 'debug':
     use_uniform = False
-    use_automata = False
+    use_automata = True
     answer = read_query_data(gold_loc)
     google = read_query_data(google_loc)
   elif runmode == 'uniform':
