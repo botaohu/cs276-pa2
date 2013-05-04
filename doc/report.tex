@@ -1,0 +1,96 @@
+\input{suhw.tex}
+\usepackage{graphicx,amssymb,amsmath,enumerate}
+\usepackage{courier}
+\usepackage{color}
+\usepackage{listings}
+\usepackage{fancyvrb}
+\usepackage{stmaryrd}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\lstset{language=Python,
+	frame=lines,
+   basicstyle=\ttfamily\fontsize{8}{12}\selectfont,
+   keywordstyle=\color{blue},
+   commentstyle=\color{red},
+   stringstyle=\color{dkgreen},
+   numbers=left,
+   numberstyle=\tiny\color{gray},
+   stepnumber=1,
+   numbersep=10pt,
+   backgroundcolor=\color{white},
+   tabsize=2,
+   showspaces=false,
+   showstringspaces=false,
+   lineskip=-3.5pt }
+\oddsidemargin 0in
+\evensidemargin 0in
+\textwidth 6.5in
+\topmargin -0.5in
+\textheight 9.0in
+
+\begin{document}
+
+\normaldoc{CS276: Information Retrieval and Web Search}{Spring 2013}{Programming Assignment 2}{Botao Hu (botaohu), Jiayuan Ma (jiayuanm)}{\today}
+
+\pagestyle{myheadings}  % Leave this command alone
+
+\section{Language Model}
+We build our language model using the provided corpus, and count all the unigrams and bigrams that appeared in the corpus.
+Using these counts, we can estimate the parameters in our language model by calculating
+\begin{equation}\label{eq:1}
+P_{mle}(w_i | w_{i-1}) = \frac{count(w_{i-1}, w_i)}{count(w_i)}
+\qquad
+P_{mle}(w_i) = \frac{count(w_i)}{\textrm{total number of terms}}
+\end{equation}
+To deal with the data sparsity problem, we use $N$-gram interpolation to obtain the final conditional probability in our language model.
+\begin{equation}\label{eq:2}
+P_{int}(w2 | w1) = \lambda P_{mle}(w2) + (1 - \lambda)P_{mle}(w2|w1)
+\end{equation}
+In our experiment, we use the default $\lambda = 0.2$.
+In addition, we use all the unigram in the corpus to build a bigram-character index to support efficient candidate word generation.
+
+\section{Candidate Word Generation}
+We use bigram index to efficiently compute Jaccard distance between words, threshold Jaccard distances to obtain a list of candidates, and filter the candidates using the exact Damerau-Levenshtein distance.
+We tune the threshold parameter to be $0.5$ to balance between efficiency and accuracy.
+
+\section{Candidate Query Scoring Using Markov-Chain Inference}
+For every term in a given query, we can
+\begin{itemize}
+  \item split it into two words in the dictionary
+  \item edit it using at most two edit operations (deletion/insertion/substitution/transposition)
+  \item combine it with the next word to form a new word that appeared in the dictionary 
+\end{itemize}
+Given the proposed candidate query, we compute our language model using
+\begin{equation}\label{eq:3}
+P(w_1, w_2, \dots, w_n) = P(w_1) P(w_2 | w_1) P(w_3 | w_2) \cdot P(w_n | w_{n-1})
+\end{equation}
+which is essentially a Markov-Chain model. We can minimize the negative log-likelihood
+\begin{equation}\label{eq:4}
+-\log P(w_1, w_2, \dots, w_n) = -\log P(w_1) - \sum_{i=2}^n \log P(w_i | w_{i-1})
+\end{equation}
+using dynamic programming (Viterbi algorithm) on markov chain. Based on this approach,
+we can find a global minimum without scoring all the possible candidate queries.
+
+
+\section{Edit Cost Model}
+Based on the above discussion, we can easily model edit cost of each word using singleton potential in our Markov chain model. The edit cost is given as follows.
+\begin{equation}\label{eq:5}
+P(x | w) = \left\{\begin{array}{ll}
+\frac{del[w_{i-1}, w_i]}{count[w_{i-1}, w_i]} & \textrm{if deletion} \\
+\frac{ins[w_{i-1}, w_i]}{count[w_{i-1}]} & \textrm{if insertion} \\
+\frac{sub[x_i, w_i]}{count[w_i]} & \textrm{if substitution} \\
+\frac{trans[w_i, w_{i+1}]}{count[w_i, w_{i+1}]} & \textrm{if transposition}
+\end{array}\right.
+\end{equation}
+All these count statistics come from the provided training file. For the unseen edits, we use Laplace smoothing to deal with the data sparsity issue.
+
+\section{Levenshtein Automata}
+We observe that Jaccard distance is not a good approximation of Damerau-Levenshtein distance, especially when the words are short and the correct edits are transpositions. To fix this problem, we implement the Levenshtein Automata to support \emph{fast} and \emph{accurate} candidate generation for words.
+
+\section{Conclusion}
+Our ultimate model (Empirical Edit Cost, Levenshtein Automata with Dynamic Programming) achieves $89.45\%$ accuracy on the provided development queries.
+
+
+\end{document}
+
